@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, abort
-from sqlalchemy import exc
 import json
 from flask_cors import CORS
 from .database.models import db_drop_and_create_all, setup_db, Drink
@@ -10,7 +9,7 @@ app = Flask(__name__)
 setup_db(app)
 
 # CORS app setup
-CORS(app, resource={"/": {"origins": "*"}})
+CORS(app)
 # CORS Headers
 @app.after_request
 def after_request(response):
@@ -21,19 +20,23 @@ def after_request(response):
     return response
 
 
-# db_drop_and_create_all()
+db_drop_and_create_all()
 
 # ROUTES
 
 
-# GET /drinks endpoint implemented as specified in drinks.service.ts at the frontend
+# GET /drinks endpoint implemented
+# as specified in drinks.service.ts
+# at the frontend
 @app.route("/drinks")
 def available_drinks():
 
     # get all drinks
-    selections = Drink.query.Order_by(Drink.id).all()
+    selections = Drink.query.all()
 
-    # returns the succes value and the short data representartion of drinks as specified in the drinks models table
+    # returns the succes value
+    # and the short data representartion of drinks
+    # as specified in the drinks models table
     return jsonify(
         {
             "success": True,
@@ -42,15 +45,19 @@ def available_drinks():
     )
 
 
-# GET /drinks-detail endpoint implemented as specified in the drinks.service.ts at the frontend
+# GET /drinks-detail endpoint implemented
+# as specified in the drinks.service.ts
+# at the frontend
 @app.route("/drinks-detail")
 @requires_auth("get:drinks-detail")
 def available_drinks_detail(payload):
 
     # get all drinks
-    selections = Drink.query.Order_by(Drink.id).all()
+    selections = Drink.query.all()
 
-    # returns the succes value and the long data representartion of drinks as specified in the drinks models table
+    # returns the succes value
+    # and the long data representartion of drinks
+    # as specified in the drinks models table
     return jsonify(
         {
             "success": True,
@@ -59,7 +66,9 @@ def available_drinks_detail(payload):
     )
 
 
-# POST /drinks-detail endpoint implemented as specified in the drinks.service.ts at the frontend
+# POST /drinks-detail endpoint implemented
+# as specified in the drinks.service.ts
+# at the frontend
 @app.route("/drinks", methods=["POST"])
 @requires_auth("post:drinks")
 def create_new_drink(payload):
@@ -68,18 +77,22 @@ def create_new_drink(payload):
     body = request.get_json()
 
     try:
-
         # input data from the frontend
         req_title = body.get("title", None)
         req_recipe = body.get("recipe", None)
 
+        if req_title is None or req_recipe is None:
+            abort(422)
+
         # Post the update to the front end
-        drink = Drink(title=req_title, recipe=req_recipe)
+        drink = Drink(title=req_title, recipe=json.dumps(req_recipe))
 
         # persists data in database
         drink.insert()
 
-        # returns the succes value and the long data representartion of drinks as specified in the drinks models table
+        # returns the succes value and
+        # the long data representartion of drinks
+        # as specified in the drinks models table
         print(drink.long())
         return jsonify(
             {
@@ -91,29 +104,37 @@ def create_new_drink(payload):
         abort(422)
 
 
-# PATCH /drinks/<drinks_id> endpoint implemented as specified in the drinks.service.ts at the frontend
+# PATCH /drinks/<drinks_id> endpoint implemented
+# as specified in the drinks.service.ts at the frontend
 @app.route("/drinks/<int:drink_id>", methods=["PATCH"])
 @requires_auth("patch:drinks")
-def patch_selected_drink(drink_id, payload):
+def patch_selected_drink(payload, drink_id):
 
     # get the body from frontend input as json
     body = request.get_json()
 
+    # input data from the frontend
+    req_title = body.get("title", None)
+    req_recipe = body.get("recipe", None)
+
     try:
+
         # fetch drinks by fithering by the drink_id
-        selection = Drink.query.filter(Drink.id == drink_id).one_or_none()
+        selection = Drink.query.get(drink_id)
 
-        # input data from the frontend
-        selection.title = body.get("title", None)
-        selection.recipe = body.get("recipe", None)
+        # Patch the selected drink_id in the front end
+        # and persists data in database
+        if req_title:
+            selection.title = req_title
 
-        if selection is None:
-            abort(404)
+        if req_recipe:
+            selection.recipe = req_recipe
 
-        # Patch the selected drink_id in the front end and persists data in database
         selection.update()
 
-        # returns the succes value and the long data representartion of drinks as specified in the drinks models table
+        # returns the succes value and
+        # the long data representartion of drinks
+        # as specified in the drinks models table
         print(selection.long())
         return jsonify(
             {
@@ -126,29 +147,32 @@ def patch_selected_drink(drink_id, payload):
         abort(422)
 
 
-# DELETE /drinks/<drinks_id> endpoint implemented as specified in the drinks.service.ts at the frontend
+# DELETE /drinks/<drinks_id> endpoint implemented
+# as specified in the drinks.service.ts
+# at the frontend
 @app.route("/drinks/<int:drink_id>", methods=["DELETE"])
 @requires_auth("delete:drinks")
 def delete_drink(payload, drink_id):
 
     try:
         # fetch drinks by fithering by the drink_id
-        selection = Drink.query.filter(Drink.id == drink_id).one_or_none()
+        selection = Drink.query.get(drink_id)
 
         if selection is None:
             abort(404)
 
-        # delete the selected drink_id in the front end and persists data in database
+        # delete the selected drink_id in the front end
+        # and persists data in database
         selection.delete()
 
-        selection = Drink.query.order_by(Drink.id).all()
-
-        # returns the succes value and the long data representartion of drinks as specified in the drinks models table
+        # returns the succes value
+        # and the long data representartion of drinks
+        # as specified in the drinks models table
         print(selection.id)
         return jsonify(
             {
                 "success": True,
-                "delete": selection.id,
+                "delete": drink_id,
             }
         )
 
